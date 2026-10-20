@@ -1,19 +1,20 @@
-// Package main implements the Tinfoil realtime-models reverse proxy.
+// Package main implements the Tinfoil small-models reverse proxy.
 //
-// Four audio backends share the same enclave: qwen3-tts, voxtral-tts,
-// voxtral-mini-4b-realtime, and whisper-large-v3-turbo. They all expose the
-// OpenAI-standard /v1/audio/speech, /v1/audio/transcriptions, and/or
-// /v1/realtime paths, so we can't dispatch by path. We route on the leftmost
-// subdomain of the request's Host (taken from X-Forwarded-Host when the shim
-// terminates TLS):
+// Five small-model backends share the same enclave: qwen3-tts, voxtral-tts,
+// voxtral-mini-4b-realtime, whisper-large-v3-turbo, and nomic-embed-text.
+// The audio models all expose the OpenAI-standard /v1/audio/speech,
+// /v1/audio/transcriptions, and/or /v1/realtime paths, so we can't dispatch
+// by path. We route on the leftmost subdomain of the request's Host (taken
+// from X-Forwarded-Host when the shim terminates TLS):
 //
-//	qwen3-tts.realtime.tinfoil.sh                 -> qwen3-tts container
-//	voxtral-tts.realtime.tinfoil.sh               -> voxtral-tts container
-//	voxtral-mini-4b-realtime.realtime.tinfoil.sh  -> voxtral-mini-4b-realtime
-//	whisper-large-v3-turbo.realtime.tinfoil.sh    -> whisper-large-v3-turbo
-//	realtime.tinfoil.sh                           -> /health on the router itself
+//	qwen3-tts.small-models.tinfoil.sh                 -> qwen3-tts container
+//	voxtral-tts.small-models.tinfoil.sh               -> voxtral-tts container
+//	voxtral-mini-4b-realtime.small-models.tinfoil.sh  -> voxtral-mini-4b-realtime
+//	whisper-large-v3-turbo.small-models.tinfoil.sh    -> whisper-large-v3-turbo
+//	nomic-embed-text.small-models.tinfoil.sh          -> nomic-embed-text (TEI)
+//	small-models.tinfoil.sh                           -> /health on the router itself
 //
-// The shim's listen-port still terminates TLS for *.realtime.tinfoil.sh
+// The shim's listen-port still terminates TLS for *.small-models.tinfoil.sh
 // (wildcard cert required). All requests reach this router on plain HTTP via
 // the loopback `upstream-port`.
 package main
@@ -44,6 +45,7 @@ type config struct {
 	voxtralTTSURL          string
 	voxtralMiniRealtimeURL string
 	whisperURL             string
+	nomicEmbedURL          string
 }
 
 func main() {
@@ -54,6 +56,7 @@ func main() {
 		voxtralTTSURL:          getenvDefault("VOXTRAL_TTS_URL", "http://127.0.0.1:8605"),
 		voxtralMiniRealtimeURL: getenvDefault("VOXTRAL_MINI_REALTIME_URL", "http://127.0.0.1:8402"),
 		whisperURL:             getenvDefault("WHISPER_URL", "http://127.0.0.1:8001"),
+		nomicEmbedURL:          getenvDefault("NOMIC_EMBED_URL", "http://127.0.0.1:8701"),
 	}
 
 	handler, err := newHandler(cfg)
@@ -67,11 +70,12 @@ func main() {
 		ReadHeaderTimeout: 15 * time.Second,
 	}
 
-	log.Printf("starting realtime router on %s (domain=%s)", cfg.listenAddr, cfg.domain)
+	log.Printf("starting small-models router on %s (domain=%s)", cfg.listenAddr, cfg.domain)
 	log.Printf("backend qwen3-tts                -> %s", cfg.qwenTTSURL)
 	log.Printf("backend voxtral-tts              -> %s", cfg.voxtralTTSURL)
 	log.Printf("backend voxtral-mini-4b-realtime -> %s", cfg.voxtralMiniRealtimeURL)
 	log.Printf("backend whisper-large-v3-turbo   -> %s", cfg.whisperURL)
+	log.Printf("backend nomic-embed-text         -> %s", cfg.nomicEmbedURL)
 
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("server failed: %v", err)
@@ -137,6 +141,7 @@ func buildBackends(cfg config) (map[string]*backend, error) {
 		{name: "voxtral-tts", raw: cfg.voxtralTTSURL},
 		{name: "voxtral-mini-4b-realtime", raw: cfg.voxtralMiniRealtimeURL},
 		{name: "whisper-large-v3-turbo", raw: cfg.whisperURL},
+		{name: "nomic-embed-text", raw: cfg.nomicEmbedURL},
 	}
 
 	backends := make(map[string]*backend, len(specs))

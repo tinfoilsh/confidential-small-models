@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const testDomain = "realtime.tinfoil.sh"
+const testDomain = "small-models.tinfoil.sh"
 
 // --- root domain ---
 
@@ -44,6 +44,36 @@ func TestRootDomainOtherPathIsNotFound(t *testing.T) {
 }
 
 // --- subdomain dispatch ---
+
+func TestNomicSubdomainProxiesEmbeddings(t *testing.T) {
+	var gotPath, gotModel string
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		gotModel, _ = body["model"].(string)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer backend.Close()
+
+	handler := newTestHandlerWith(t, "nomic", backend.URL)
+	req := newReq(http.MethodPost, "/v1/embeddings", strings.NewReader(`{"model":"nomic-embed-text","input":"hi"}`),
+		"nomic-embed-text."+testDomain)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	if gotPath != "/v1/embeddings" {
+		t.Fatalf("expected backend path /v1/embeddings, got %q", gotPath)
+	}
+	if gotModel != "nomic-embed-text" {
+		t.Fatalf("expected model nomic-embed-text forwarded, got %q", gotModel)
+	}
+}
 
 func TestQwenSubdomainProxiesSpeech(t *testing.T) {
 	var gotPath, gotModel string
@@ -324,6 +354,7 @@ func TestBuildBackendsRejectsInvalidURL(t *testing.T) {
 		voxtralTTSURL:          "://bad",
 		voxtralMiniRealtimeURL: "http://127.0.0.1:8402",
 		whisperURL:             "http://127.0.0.1:8001",
+		nomicEmbedURL:          "http://127.0.0.1:8701",
 	})
 	if err == nil {
 		t.Fatal("expected invalid url error")
@@ -338,6 +369,7 @@ func TestBuildBackendsRequiresSchemeAndHost(t *testing.T) {
 		voxtralTTSURL:          "http://127.0.0.1:8605",
 		voxtralMiniRealtimeURL: "http://127.0.0.1:8402",
 		whisperURL:             "http://127.0.0.1:8001",
+		nomicEmbedURL:          "http://127.0.0.1:8701",
 	})
 	if err == nil || !strings.Contains(err.Error(), "scheme and host") {
 		t.Fatalf("expected scheme and host error, got %v", err)
@@ -352,6 +384,7 @@ func TestNewHandlerRequiresDomain(t *testing.T) {
 		voxtralTTSURL:          "http://127.0.0.1:8605",
 		voxtralMiniRealtimeURL: "http://127.0.0.1:8402",
 		whisperURL:             "http://127.0.0.1:8001",
+		nomicEmbedURL:          "http://127.0.0.1:8701",
 	})
 	if err == nil {
 		t.Fatal("expected DOMAIN required error")
@@ -376,7 +409,7 @@ func newTestHandler(t *testing.T) http.Handler {
 
 // newTestHandlerWith returns a handler whose specific backend is replaced
 // with the given httptest server URL. backend names: "qwen", "voxtral_tts",
-// "voxtral_mini", "whisper".
+// "voxtral_mini", "whisper", "nomic".
 func newTestHandlerWith(t *testing.T, name, backendURL string) http.Handler {
 	t.Helper()
 
@@ -387,6 +420,7 @@ func newTestHandlerWith(t *testing.T, name, backendURL string) http.Handler {
 		voxtralTTSURL:          "http://127.0.0.1:8605",
 		voxtralMiniRealtimeURL: "http://127.0.0.1:8402",
 		whisperURL:             "http://127.0.0.1:8001",
+		nomicEmbedURL:          "http://127.0.0.1:8701",
 	}
 
 	switch name {
@@ -400,6 +434,8 @@ func newTestHandlerWith(t *testing.T, name, backendURL string) http.Handler {
 		cfg.voxtralMiniRealtimeURL = backendURL
 	case "whisper":
 		cfg.whisperURL = backendURL
+	case "nomic":
+		cfg.nomicEmbedURL = backendURL
 	default:
 		t.Fatalf("unknown backend override %q", name)
 	}

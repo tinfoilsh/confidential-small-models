@@ -19,10 +19,13 @@ models:
   - name: "whisper-large-v3-turbo"
     repo: "openai/whisper-large-v3-turbo@41f01f3fe87f28c78e2fbf8b568835947dd65ed9"
     mpk: "dd81839982fa01a289f7b60613055e4e1f789503c25a3535b75d53841f7f5b78_1622474752_55d2c545-4d89-5658-9ffd-ce0b4d07ac36"
+  - name: "nomic-embed-text-v1.5"
+    repo: "nomic-ai/nomic-embed-text-v1.5@e5cf08aadaa33385f5990def41f7a23405aec398"
+    mpk: "868790ff0e4820086091a6a63097f194a0a17bc431dd616538eb7881ecdbd935_2215256064_328142c7-83ed-5f89-a463-0a11367cf58f"
 
 containers:
   - name: "router"
-    image: "ghcr.io/tinfoilsh/confidential-realtime-models@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    image: "ghcr.io/tinfoilsh/confidential-small-models@sha256:0000000000000000000000000000000000000000000000000000000000000000"
     restart: always
     env:
       - LISTEN_ADDR: ":8080"
@@ -31,6 +34,7 @@ containers:
       - VOXTRAL_TTS_URL: "http://voxtral-tts:8605"
       - VOXTRAL_MINI_REALTIME_URL: "http://voxtral-mini-4b-realtime:8401"
       - WHISPER_URL: "http://whisper-large-v3-turbo:8001"
+      - NOMIC_EMBED_URL: "http://nomic-embed-text:8701"
     networks: ["models"]
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
@@ -38,7 +42,7 @@ containers:
       timeout: 5s
       start_period: 1m
   - name: "voxtral-mini-4b-realtime"
-    image: "ghcr.io/tinfoilsh/confidential-realtime-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
     runtime: nvidia
     gpus: all
     restart: always
@@ -89,7 +93,7 @@ containers:
       timeout: 5s
       start_period: 5m
   - name: "qwen3-tts"
-    image: "ghcr.io/tinfoilsh/confidential-realtime-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
     runtime: nvidia
     gpus: all
     restart: always
@@ -111,7 +115,7 @@ containers:
       timeout: 5s
       start_period: 5m
   - name: "voxtral-tts"
-    image: "ghcr.io/tinfoilsh/confidential-realtime-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
     runtime: nvidia
     gpus: all
     restart: always
@@ -134,7 +138,7 @@ containers:
       timeout: 5s
       start_period: 5m
   - name: "whisper-large-v3-turbo"
-    image: "ghcr.io/tinfoilsh/confidential-realtime-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
     runtime: nvidia
     gpus: all
     restart: always
@@ -169,6 +173,23 @@ containers:
       timeout: 5s
       start_period: 5m
 
+  - name: "nomic-embed-text"
+    image: "ghcr.io/huggingface/text-embeddings-inference@sha256:346a39baecdd03c40e77184c66a4a9931ec2e25b8e57ff3766b79affdbd38673"
+    runtime: nvidia
+    gpus: all
+    restart: always
+    command: ["--model-id", "/tinfoil/mpk/mpk-868790ff0e4820086091a6a63097f194a0a17bc431dd616538eb7881ecdbd935", "--served-model-name",
+      "nomic-embed-text", "--port", "8701"]
+    tmpfs:
+      /tmp: size=512m,mode=1777,exec
+      /root: size=2g,mode=0700,exec
+    networks: ["models"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8701/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10m
+
 shim:
   upstream-port: 8080
   tls-wildcard: true
@@ -177,6 +198,7 @@ shim:
     - /v1/audio/speech
     - /v1/audio/transcriptions
     - /v1/realtime
+    - /v1/embeddings
     - /metrics
   paths:
     - /health
@@ -184,3 +206,4 @@ shim:
     - /v1/audio/speech
     - /v1/audio/transcriptions
     - /v1/realtime
+    - /v1/embeddings
