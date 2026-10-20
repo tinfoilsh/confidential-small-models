@@ -1,8 +1,13 @@
-# confidential-realtime-models
+# confidential-small-models
 
-Tinfoil enclave that colocates four audio models on a single H200 plus a
-subdomain-routing reverse proxy. Two container images are built from this
-repo in addition to the upstream model packs.
+Tinfoil enclave that colocates some small models on a single H200
+behind a subdomain-routing reverse proxy. There are four realtime audio models
+(qwen3-tts, voxtral-tts, voxtral-mini-4b-realtime, whisper-large-v3-turbo)
+plus nomic-embed-text . Two container
+images are built from this repo in addition to the upstream model packs.
+
+Lineage: forked as an exact copy of `confidential-realtime-models` and
+extended to absorb `confidential-nomic-embed-text`. Each model keeps its existing public API.
 
 ## Layout
 
@@ -15,6 +20,7 @@ repo in addition to the upstream model packs.
 │                          # colocation-friendly stage configs at
 │                          # /opt/realtime-configs/. Used by all three vLLM
 │                          # containers (qwen3-tts, voxtral-tts, voxtral-mini).
+│                          # nomic-embed-text runs upstream TEI, no local image.
 ├── tinfoil-config.yml     # CVM model packs + container manifest
 └── .github/workflows/
     ├── test.yml           # router go vet + go test + go build
@@ -27,13 +33,14 @@ repo in addition to the upstream model packs.
 The router dispatches on the leftmost label of the request's host. Configured
 via `DOMAIN` (read from `external-config.yml`):
 
-| Subdomain                                         | Backend                          | Port |
-|---------------------------------------------------|----------------------------------|------|
-| `qwen3-tts.<DOMAIN>`                              | `qwen3-tts` container            | 8505 |
-| `voxtral-tts.<DOMAIN>`                            | `voxtral-tts` container          | 8605 |
-| `voxtral-mini-4b-realtime.<DOMAIN>`               | `voxtral-mini-4b-realtime`       | 8401 |
-| `whisper-large-v3-turbo.<DOMAIN>`                 | `whisper-large-v3-turbo`         | 8001 |
-| `<DOMAIN>` (root)                                 | `/health` only                   | n/a  |
+| Subdomain                           | Backend                    | Port |
+| ----------------------------------- | -------------------------- | ---- |
+| `qwen3-tts.<DOMAIN>`                | `qwen3-tts` container      | 8505 |
+| `voxtral-tts.<DOMAIN>`              | `voxtral-tts` container    | 8605 |
+| `voxtral-mini-4b-realtime.<DOMAIN>` | `voxtral-mini-4b-realtime` | 8401 |
+| `whisper-large-v3-turbo.<DOMAIN>`   | `whisper-large-v3-turbo`   | 8001 |
+| `nomic-embed-text.<DOMAIN>`         | `nomic-embed-text` (TEI)   | 8701 |
+| `<DOMAIN>` (root)                   | `/health` only             | n/a  |
 
 The router prefers `X-Forwarded-Host` over `Host`, so the shim can terminate
 TLS for `*.<DOMAIN>` and forward plain HTTP without the router having to
@@ -101,7 +108,7 @@ backend matching production behavior).
 
 ### router
 
-`ghcr.io/tinfoilsh/confidential-realtime-models`
+`ghcr.io/tinfoilsh/confidential-small-models`
 
 Go reverse proxy. `DOMAIN`, `LISTEN_ADDR`, and the per-backend URLs are env-driven.
 Defaults are loopback-only and `DOMAIN=localhost` so misconfigured deployments
@@ -109,7 +116,7 @@ fail closed.
 
 ### omni
 
-`ghcr.io/tinfoilsh/confidential-realtime-models-omni`
+`ghcr.io/tinfoilsh/confidential-small-models-omni`
 
 `FROM vllm/vllm-omni:v0.18.0` plus colocation-friendly stage configs at
 `/opt/realtime-configs/{qwen3_tts,voxtral_tts}_realtime.yaml`. The voxtral-mini

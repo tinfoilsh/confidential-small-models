@@ -1,4 +1,4 @@
-module github.com/tinfoilsh/confidential-realtime-models
+module github.com/tinfoilsh/confidential-small-models
 
 go 1.25.0
 
