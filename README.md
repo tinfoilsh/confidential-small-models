@@ -1,14 +1,13 @@
 # confidential-small-models
 
-Tinfoil enclave that colocates the fleet's small models on a single H200
-behind a subdomain-routing reverse proxy: the four realtime audio models
+Tinfoil enclave that colocates some small models on a single H200
+behind a subdomain-routing reverse proxy. There are four realtime audio models
 (qwen3-tts, voxtral-tts, voxtral-mini-4b-realtime, whisper-large-v3-turbo)
-plus nomic-embed-text (embeddings, served by HuggingFace TEI). Two container
+plus nomic-embed-text . Two container
 images are built from this repo in addition to the upstream model packs.
 
 Lineage: forked as an exact copy of `confidential-realtime-models` and
-extended to absorb `confidential-nomic-embed-text` — consolidating two
-mostly-idle H200s into one. Each model keeps its existing public API.
+extended to absorb `confidential-nomic-embed-text`. Each model keeps its existing public API.
 
 ## Layout
 
@@ -34,14 +33,14 @@ mostly-idle H200s into one. Each model keeps its existing public API.
 The router dispatches on the leftmost label of the request's host. Configured
 via `DOMAIN` (read from `external-config.yml`):
 
-| Subdomain                                         | Backend                          | Port |
-|---------------------------------------------------|----------------------------------|------|
-| `qwen3-tts.<DOMAIN>`                              | `qwen3-tts` container            | 8505 |
-| `voxtral-tts.<DOMAIN>`                            | `voxtral-tts` container          | 8605 |
-| `voxtral-mini-4b-realtime.<DOMAIN>`               | `voxtral-mini-4b-realtime`       | 8401 |
-| `whisper-large-v3-turbo.<DOMAIN>`                 | `whisper-large-v3-turbo`         | 8001 |
-| `nomic-embed-text.<DOMAIN>`                       | `nomic-embed-text` (TEI)         | 8701 |
-| `<DOMAIN>` (root)                                 | `/health` only                   | n/a  |
+| Subdomain                           | Backend                    | Port |
+| ----------------------------------- | -------------------------- | ---- |
+| `qwen3-tts.<DOMAIN>`                | `qwen3-tts` container      | 8505 |
+| `voxtral-tts.<DOMAIN>`              | `voxtral-tts` container    | 8605 |
+| `voxtral-mini-4b-realtime.<DOMAIN>` | `voxtral-mini-4b-realtime` | 8401 |
+| `whisper-large-v3-turbo.<DOMAIN>`   | `whisper-large-v3-turbo`   | 8001 |
+| `nomic-embed-text.<DOMAIN>`         | `nomic-embed-text` (TEI)   | 8701 |
+| `<DOMAIN>` (root)                   | `/health` only             | n/a  |
 
 The router prefers `X-Forwarded-Host` over `Host`, so the shim can terminate
 TLS for `*.<DOMAIN>` and forward plain HTTP without the router having to
