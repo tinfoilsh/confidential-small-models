@@ -192,6 +192,7 @@ containers:
 
 shim:
   upstream-port: 8080
+  drain_connections: true
   tls-wildcard: true
   authenticated: true
   authenticated-endpoints:
