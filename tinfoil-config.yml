@@ -10,6 +10,9 @@ models:
   - name: "qwen3-tts"
     repo: "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice@0c0e3051f131929182e2c023b9537f8b1c68adfe"
     mpk: "6d350aa3684da02b2f59157fc11b7c5ea487fa265e98ca1c1dd74cf31ac2fa7e_4520226816_7dc41474-aac5-50bd-bcd5-ffff26ccad57"
+  - name: "qwen3-tts-base"
+    repo: "Qwen/Qwen3-TTS-12Hz-1.7B-Base@fd4b254389122332181a7c3db7f27e918eec64e3"
+    mpk: "ce67733eb8d1e56eaedbd9f88bcd8ed4711adf148581249f1e0d01bfdb0e26de_4544237568_2af3bfc9-3240-5bee-9abb-b8560b277ac6"
   - name: "voxtral-tts"
     repo: "mistralai/Voxtral-4B-TTS-2603@b81be46c3777f88621676791b512bb01dc1cb970"
     mpk: "8f7b7407c2bd621160a89d5c3ed845baecd2912850aceca2ad264f06442f471b_8037642240_6b9c8976-212b-5927-b9ff-945a64178b46"
@@ -31,6 +34,7 @@ containers:
       - LISTEN_ADDR: ":8080"
       - DOMAIN
       - QWEN_TTS_URL: "http://qwen3-tts:8505"
+      - QWEN_TTS_BASE_URL: "http://qwen3-tts-base:8506"
       - VOXTRAL_TTS_URL: "http://voxtral-tts:8605"
       - VOXTRAL_MINI_REALTIME_URL: "http://voxtral-mini-4b-realtime:8401"
       - WHISPER_URL: "http://whisper-large-v3-turbo:8001"
@@ -111,6 +115,28 @@ containers:
     networks: ["models"]
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8505/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 5m
+  - name: "qwen3-tts-base"
+    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    runtime: nvidia
+    gpus: all
+    restart: always
+    env:
+      - PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True"
+    entrypoint: ["/bin/sh", "-c"]
+    command: [
+        "ln -s /tinfoil/mpk/mpk-ce67733eb8d1e56eaedbd9f88bcd8ed4711adf148581249f1e0d01bfdb0e26de /tmp/model-Base
+        && exec vllm serve /tmp/model-Base --stage-configs-path /opt/realtime-configs/qwen3_tts_realtime.yaml --port
+        8506 --host 0.0.0.0 --trust-remote-code --enforce-eager --omni --log-stats --served-model-name qwen3-tts-base",
+      ]
+    tmpfs:
+      /tmp: size=512m,mode=1777,exec
+      /root: size=2g,mode=0700,exec
+    networks: ["models"]
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8506/health"]
       interval: 30s
       timeout: 5s
       start_period: 5m

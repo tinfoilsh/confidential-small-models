@@ -1,9 +1,9 @@
 # confidential-small-models
 
 Tinfoil enclave that colocates some small models on a single H200
-behind a subdomain-routing reverse proxy. There are four realtime audio models
-(qwen3-tts, voxtral-tts, voxtral-mini-4b-realtime, whisper-large-v3-turbo)
-plus nomic-embed-text . Two container
+behind a subdomain-routing reverse proxy. There are five audio models
+(qwen3-tts, qwen3-tts-base, voxtral-tts, voxtral-mini-4b-realtime,
+whisper-large-v3-turbo) plus nomic-embed-text. Two container
 images are built from this repo in addition to the upstream model packs.
 
 Lineage: forked as an exact copy of `confidential-realtime-models` and
@@ -36,6 +36,7 @@ via `DOMAIN` (read from `external-config.yml`):
 | Subdomain                           | Backend                    | Port |
 | ----------------------------------- | -------------------------- | ---- |
 | `qwen3-tts.<DOMAIN>`                | `qwen3-tts` container      | 8505 |
+| `qwen3-tts-base.<DOMAIN>`           | `qwen3-tts-base` container | 8506 |
 | `voxtral-tts.<DOMAIN>`              | `voxtral-tts` container    | 8605 |
 | `voxtral-mini-4b-realtime.<DOMAIN>` | `voxtral-mini-4b-realtime` | 8401 |
 | `whisper-large-v3-turbo.<DOMAIN>`   | `whisper-large-v3-turbo`   | 8001 |
@@ -46,6 +47,43 @@ The router prefers `X-Forwarded-Host` over `Host`, so the shim can terminate
 TLS for `*.<DOMAIN>` and forward plain HTTP without the router having to
 understand TLS. The wildcard cert is provisioned by the shim via
 `tls-wildcard: true` in `tinfoil-config.yml`.
+
+## Qwen3-TTS voice cloning
+
+`qwen3-tts` keeps the CustomVoice checkpoint and preset speakers. Cloning
+fields and non-CustomVoice tasks return an OpenAI-style 400 before reaching
+that engine. Use `qwen3-tts-base` for the separate 1.7B Base checkpoint.
+
+Send `POST /v1/audio/speech` to `qwen3-tts-base.<DOMAIN>` with:
+
+```json
+{
+  "model": "qwen3-tts-base",
+  "task_type": "Base",
+  "input": "Hello, this is a cloned voice.",
+  "ref_audio": "data:audio/wav;base64,<base64-encoded reference clip>",
+  "ref_text": "The exact transcript of the reference clip.",
+  "response_format": "wav"
+}
+```
+
+For speaker-embedding-only cloning, omit `ref_text` and set
+`"x_vector_only_mode": true`. Base also accepts a `speaker_embedding` supplied
+in the upstream format with `task_type: "Base"`; it has no preset speakers.
+Reference audio must be inline (`data:audio/...`), not a remote URL or local
+file, so requests cannot make the enclave fetch arbitrary resources.
+Use a short reference clip; Base requests have a 2 MiB total JSON body limit.
+All TTS models keep the 2,000 weighted-character input limit (CJK counts as
+three); CustomVoice and Voxtral keep their 64 KiB body limit. Qwen exposes
+only single-request speech, health, and metrics: batch, uploaded voices, and
+speech WebSockets are not supported.
+
+Base shares the colocated Qwen stage config, with its own engines and KV
+allocations. Validate GPU memory headroom and both cloning modes on an H200
+before release. The omni image backports upstream
+[#5157](https://github.com/vllm-project/vllm-omni/pull/5157) to prevent an
+x-vector-only request from poisoning the cache for a later transcript-based
+request using the same clip.
 
 ## WebSocket subprotocol-echo fix
 

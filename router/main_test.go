@@ -351,6 +351,7 @@ func TestBuildBackendsRejectsInvalidURL(t *testing.T) {
 		listenAddr:             ":0",
 		domain:                 testDomain,
 		qwenTTSURL:             "http://127.0.0.1:8505",
+		qwenTTSBaseURL:         "http://127.0.0.1:8506",
 		voxtralTTSURL:          "://bad",
 		voxtralMiniRealtimeURL: "http://127.0.0.1:8402",
 		whisperURL:             "http://127.0.0.1:8001",
@@ -366,6 +367,7 @@ func TestBuildBackendsRequiresSchemeAndHost(t *testing.T) {
 		listenAddr:             ":0",
 		domain:                 testDomain,
 		qwenTTSURL:             "/relative",
+		qwenTTSBaseURL:         "http://127.0.0.1:8506",
 		voxtralTTSURL:          "http://127.0.0.1:8605",
 		voxtralMiniRealtimeURL: "http://127.0.0.1:8402",
 		whisperURL:             "http://127.0.0.1:8001",
@@ -381,6 +383,7 @@ func TestNewHandlerRequiresDomain(t *testing.T) {
 		listenAddr:             ":0",
 		domain:                 "",
 		qwenTTSURL:             "http://127.0.0.1:8505",
+		qwenTTSBaseURL:         "http://127.0.0.1:8506",
 		voxtralTTSURL:          "http://127.0.0.1:8605",
 		voxtralMiniRealtimeURL: "http://127.0.0.1:8402",
 		whisperURL:             "http://127.0.0.1:8001",
@@ -409,7 +412,7 @@ func newTestHandler(t *testing.T) http.Handler {
 
 // newTestHandlerWith returns a handler whose specific backend is replaced
 // with the given httptest server URL. backend names: "qwen", "voxtral_tts",
-// "voxtral_mini", "whisper", "nomic".
+// "qwen_base", "voxtral_mini", "whisper", "nomic".
 func newTestHandlerWith(t *testing.T, name, backendURL string) http.Handler {
 	t.Helper()
 
@@ -417,6 +420,7 @@ func newTestHandlerWith(t *testing.T, name, backendURL string) http.Handler {
 		listenAddr:             ":0",
 		domain:                 testDomain,
 		qwenTTSURL:             "http://127.0.0.1:8505",
+		qwenTTSBaseURL:         "http://127.0.0.1:8506",
 		voxtralTTSURL:          "http://127.0.0.1:8605",
 		voxtralMiniRealtimeURL: "http://127.0.0.1:8402",
 		whisperURL:             "http://127.0.0.1:8001",
@@ -428,6 +432,8 @@ func newTestHandlerWith(t *testing.T, name, backendURL string) http.Handler {
 		// no override
 	case "qwen":
 		cfg.qwenTTSURL = backendURL
+	case "qwen_base":
+		cfg.qwenTTSBaseURL = backendURL
 	case "voxtral_tts":
 		cfg.voxtralTTSURL = backendURL
 	case "voxtral_mini":

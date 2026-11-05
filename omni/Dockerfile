@@ -25,4 +25,9 @@ RUN set -eux; \
     rm -rf /tmp/tinfoil-patches; \
     python3 -c "import vllm; print('vllm', vllm.__version__, 'with tinfoil realtime patches')"
 
+# Exercise cache bookkeeping against the actual patched image source, without
+# importing CUDA or starting engines. GPU end-to-end tests are still required.
+COPY tests/ /tmp/tinfoil-tests/
+RUN python3 /tmp/tinfoil-tests/test_qwen_ref_audio_cache.py && rm -rf /tmp/tinfoil-tests
+
 COPY stage_configs/ /opt/realtime-configs/
