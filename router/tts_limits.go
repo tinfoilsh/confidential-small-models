@@ -35,8 +35,7 @@ const (
 	// is at most 8 KiB of UTF-8, so this leaves room for the other fields and
 	// for JSON escaping.
 	ttsMaxBodyBytes = 64 << 10
-	// Base requests carry a short inline reference clip. Keep the larger
-	// allowance specific to Base; do not relax CustomVoice's body limit.
+	// Base requests carry a short inline reference clip.
 	ttsBaseMaxBodyBytes = 2 << 20
 )
 

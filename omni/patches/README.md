@@ -59,7 +59,3 @@ artifact ready without codec tokens. A later ICL request with the same clip
 then omits the waveform and can kill EngineCore (upstream #5049). The fix keys
 readiness by both artifact and cloning mode, including warmup and eviction.
 Retire this patch when the base image contains #5157.
-
-Before release, use the same clip for x-vector-only → ICL → x-vector-only
-requests in a GPU end-to-end test. Verify nonempty audio for each request and
-confirm both Qwen backends remain healthy.
