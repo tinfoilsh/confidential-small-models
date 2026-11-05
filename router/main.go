@@ -128,6 +128,10 @@ func newHandler(cfg config) (http.Handler, error) {
 			return
 		}
 
+		if _, isTTS := ttsMaxInputChars[b.name]; isTTS && !enforceTTSLimits(w, r, b.name) {
+			return
+		}
+
 		b.proxy.ServeHTTP(w, r)
 	}), nil
 }
