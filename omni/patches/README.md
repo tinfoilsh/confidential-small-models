@@ -60,8 +60,6 @@ then omits the waveform and can kill EngineCore (upstream #5049). The fix keys
 readiness by both artifact and cloning mode, including warmup and eviction.
 Retire this patch when the base image contains #5157.
 
-`../tests/test_qwen_ref_audio_cache.py` executes the actual cache methods
-extracted from the installed source without GPU dependencies. The image build
-runs these checks. It does not replace a GPU end-to-end test: before release,
-use the same clip for x-vector-only → ICL → x-vector-only requests, verify
-nonempty audio for each, and confirm both Qwen backends remain healthy.
+Before release, use the same clip for x-vector-only → ICL → x-vector-only
+requests in a GPU end-to-end test. Verify nonempty audio for each request and
+confirm both Qwen backends remain healthy.
