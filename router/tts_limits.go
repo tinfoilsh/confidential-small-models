@@ -120,6 +120,12 @@ func enforceQwenCheckpoint(w http.ResponseWriter, req map[string]json.RawMessage
 		v, ok := req[key]
 		return ok && !bytes.Equal(bytes.TrimSpace(v), []byte("null"))
 	}
+	// vLLM's global request normalizer maps the Higgs-style references
+	// alias onto ref_audio/ref_text even for Qwen. Reject it explicitly so
+	// neither checkpoint validation nor the inline-only rule can be bypassed.
+	if present("references") {
+		return reject("references", "the references alias is not supported on Qwen endpoints; use explicit ref_audio/ref_text fields on qwen3-tts-base")
+	}
 	if model == "qwen3-tts" {
 		for _, field := range []string{"ref_audio", "ref_text", "speaker_embedding", "x_vector_only_mode"} {
 			if present(field) {

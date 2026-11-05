@@ -102,6 +102,46 @@ func TestBaseBodyLimit(t *testing.T) {
 	}
 }
 
+func TestQwenRejectsReferencesAlias(t *testing.T) {
+	for _, tc := range []struct{ backend, model string }{{"qwen", "qwen3-tts"}, {"qwen_base", "qwen3-tts-base"}} {
+		for _, fields := range []string{
+			`"references":[{"audio_path":"data:audio/wav;base64,AAAA","text":"hello"}]`,
+			`"references":[{"audio_path":"http://169.254.169.254/metadata"}]`,
+			`"references":[{"audio_path":"file:///etc/passwd"}]`,
+			`"ref_audio":null,"references":[{"audio_path":"https://example.com/ref.wav"}]`,
+			`"ref_audio":"data:audio/wav;base64,AAAA","references":[{"audio_path":"https://example.com/ref.wav"}]`,
+		} {
+			body := `{"model":"` + tc.model + `","input":"hi",` + fields + `}`
+			rec, got := sendTo(t, tc.backend, tc.model, "/v1/audio/speech", body)
+			if rec.Code != http.StatusBadRequest || got != "" {
+				t.Errorf("%s: alias request reached backend: status=%d fields=%s", tc.model, rec.Code, fields)
+				continue
+			}
+			var resp struct {
+				Error struct {
+					Param string `json:"param"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil || resp.Error.Param != "references" {
+				t.Errorf("%s: expected references error, got %s", tc.model, rec.Body.String())
+			}
+		}
+	}
+}
+
+func TestQwenNullReferencesPreserveCanonicalRequests(t *testing.T) {
+	for _, tc := range []struct{ backend, model, fields string }{
+		{"qwen", "qwen3-tts", `"voice":"vivian"`},
+		{"qwen_base", "qwen3-tts-base", `"ref_audio":"data:audio/wav;base64,AAAA","ref_text":"hello"`},
+	} {
+		body := `{"input":"hi","references":null,` + tc.fields + `}`
+		rec, got := sendTo(t, tc.backend, tc.model, "/v1/audio/speech", body)
+		if rec.Code != http.StatusOK || got != body {
+			t.Fatalf("%s: canonical request with null references changed: status=%d", tc.model, rec.Code)
+		}
+	}
+}
+
 func TestQwenAlternateAPIsCannotBypassValidation(t *testing.T) {
 	for _, tc := range []struct{ backend, model string }{{"qwen", "qwen3-tts"}, {"qwen_base", "qwen3-tts-base"}} {
 		for _, path := range []string{"/v1/audio/speech/batch", "/v1/audio/speech/stream", "/v1/audio/voices", "/v1/audio/speech/"} {
@@ -114,9 +154,13 @@ func TestQwenAlternateAPIsCannotBypassValidation(t *testing.T) {
 }
 
 func TestVoxtralCloningUnaffected(t *testing.T) {
-	body := `{"input":"hi","ref_audio":"https://example.com/ref.wav"}`
-	rec, got := sendTo(t, "voxtral_tts", "voxtral-tts", "/v1/audio/speech", body)
-	if rec.Code != http.StatusOK || got != body {
-		t.Fatalf("Voxtral cloning changed: status=%d backend=%q", rec.Code, got)
+	for _, body := range []string{
+		`{"input":"hi","ref_audio":"https://example.com/ref.wav"}`,
+		`{"input":"hi","references":[{"audio_path":"https://example.com/ref.wav"}]}`,
+	} {
+		rec, got := sendTo(t, "voxtral_tts", "voxtral-tts", "/v1/audio/speech", body)
+		if rec.Code != http.StatusOK || got != body {
+			t.Fatalf("Voxtral cloning changed: status=%d backend=%q", rec.Code, got)
+		}
 	}
 }

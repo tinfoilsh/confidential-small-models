@@ -71,7 +71,9 @@ For speaker-embedding-only cloning, omit `ref_text` and set
 `"x_vector_only_mode": true`. Base also accepts a `speaker_embedding` supplied
 in the upstream format with `task_type: "Base"`; it has no preset speakers.
 Reference audio must be inline (`data:audio/...`), not a remote URL or local
-file, so requests cannot make the enclave fetch arbitrary resources.
+file, so requests cannot make the enclave fetch arbitrary resources. The
+upstream `references` alias is rejected on Qwen endpoints; use explicit
+`ref_audio`/`ref_text` fields instead.
 Use a short reference clip; Base requests have a 2 MiB total JSON body limit.
 All TTS models keep the 2,000 weighted-character input limit (CJK counts as
 three); CustomVoice and Voxtral keep their 64 KiB body limit. Qwen exposes
