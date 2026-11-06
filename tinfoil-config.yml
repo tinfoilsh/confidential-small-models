@@ -28,7 +28,7 @@ models:
 
 containers:
   - name: "router"
-    image: "ghcr.io/tinfoilsh/confidential-small-models@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    image: "ghcr.io/tinfoilsh/confidential-small-models@sha256:6027034fe01be4649cd421faa6a55402aef39eecb62fa59d9941d60cd086bb3a" # v0.0.4
     restart: always
     env:
       - LISTEN_ADDR: ":8080"
@@ -46,7 +46,7 @@ containers:
       timeout: 5s
       start_period: 1m
   - name: "voxtral-mini-4b-realtime"
-    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:3b420bf5c6480512aca025551c84ca6ff57321b82d4626c2fa65f334c64aa8ee" # v0.0.4
     runtime: nvidia
     gpus: all
     restart: always
@@ -97,7 +97,7 @@ containers:
       timeout: 5s
       start_period: 5m
   - name: "qwen3-tts"
-    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:3b420bf5c6480512aca025551c84ca6ff57321b82d4626c2fa65f334c64aa8ee" # v0.0.4
     runtime: nvidia
     gpus: all
     restart: always
@@ -119,7 +119,7 @@ containers:
       timeout: 5s
       start_period: 5m
   - name: "qwen3-tts-base"
-    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:3b420bf5c6480512aca025551c84ca6ff57321b82d4626c2fa65f334c64aa8ee" # v0.0.4
     runtime: nvidia
     gpus: all
     restart: always
@@ -141,7 +141,7 @@ containers:
       timeout: 5s
       start_period: 5m
   - name: "voxtral-tts"
-    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:3b420bf5c6480512aca025551c84ca6ff57321b82d4626c2fa65f334c64aa8ee" # v0.0.4
     runtime: nvidia
     gpus: all
     restart: always
@@ -164,7 +164,7 @@ containers:
       timeout: 5s
       start_period: 5m
   - name: "whisper-large-v3-turbo"
-    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    image: "ghcr.io/tinfoilsh/confidential-small-models-omni@sha256:3b420bf5c6480512aca025551c84ca6ff57321b82d4626c2fa65f334c64aa8ee" # v0.0.4
     runtime: nvidia
     gpus: all
     restart: always
