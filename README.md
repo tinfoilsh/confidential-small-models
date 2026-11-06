@@ -82,10 +82,8 @@ speech WebSockets are not supported.
 
 Base shares the colocated Qwen stage config, with its own engines and KV
 allocations. Validate GPU memory headroom and both cloning modes on an H200
-before release. The omni image backports upstream
-[#5157](https://github.com/vllm-project/vllm-omni/pull/5157) to prevent an
-x-vector-only request from poisoning the cache for a later transcript-based
-request using the same clip.
+before release. Caching is not supoprted on Qwen. For Base, each request
+must supply its own reference audio or embedding; cached voices are not reused.
 
 ## WebSocket subprotocol-echo fix
 

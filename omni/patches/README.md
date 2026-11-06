@@ -49,13 +49,12 @@ The fix reads `codes.audio` and falls back to the old top-level key. Retire
 this patch once the base image is bumped to a vllm-omni release that
 contains #4954 (v0.25.0 or later).
 
-### 0003 — qwen3-tts-mode-aware-ref-audio-cache
+### 0003 — disable-reference-audio-caches
 
-Upstream: [vllm-project/vllm-omni#5157](https://github.com/vllm-project/vllm-omni/pull/5157)
-(commit `7b2edd66507823c20d30ea097e1df116e9f80984`).
+Prevent voice caching. This is on by default, and has no simple way to turn off. Disable decoded
+reference-audio caching in the speech server and both reference-artifact and
+named-speaker caching in the Qwen prompt builder. These caches lack a trusted
+caller namespace and must not share customer conditioning across requests.
+Every request processes its supplied reference audio or embedding independently.
 
-On the pinned v0.24.0 source, an x-vector-only request marks a reference-audio
-artifact ready without codec tokens. A later ICL request with the same clip
-then omits the waveform and can kill EngineCore (upstream #5049). The fix keys
-readiness by both artifact and cloning mode, including warmup and eviction.
-Retire this patch when the base image contains #5157.
+Don't retire this patch.
