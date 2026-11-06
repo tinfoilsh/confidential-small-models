@@ -38,6 +38,7 @@ func sendTo(t *testing.T, backendName, subdomain, path, body string) (*httptest.
 
 var ttsBackends = []struct{ backend, model string }{
 	{"qwen", "qwen3-tts"},
+	{"qwen_base", "qwen3-tts-base"},
 	{"voxtral_tts", "voxtral-tts"},
 }
 

@@ -1,13 +1,14 @@
 // Package main implements the Tinfoil small-models reverse proxy.
 //
-// Five small-model backends share the same enclave: qwen3-tts, voxtral-tts,
-// voxtral-mini-4b-realtime, whisper-large-v3-turbo, and nomic-embed-text.
+// Six small-model backends share the same enclave: qwen3-tts, qwen3-tts-base,
+// voxtral-tts, voxtral-mini-4b-realtime, whisper-large-v3-turbo, and nomic-embed-text.
 // The audio models all expose the OpenAI-standard /v1/audio/speech,
 // /v1/audio/transcriptions, and/or /v1/realtime paths, so we can't dispatch
 // by path. We route on the leftmost subdomain of the request's Host (taken
 // from X-Forwarded-Host when the shim terminates TLS):
 //
 //	qwen3-tts.small-models.tinfoil.sh                 -> qwen3-tts container
+//	qwen3-tts-base.small-models.tinfoil.sh            -> qwen3-tts-base container
 //	voxtral-tts.small-models.tinfoil.sh               -> voxtral-tts container
 //	voxtral-mini-4b-realtime.small-models.tinfoil.sh  -> voxtral-mini-4b-realtime
 //	whisper-large-v3-turbo.small-models.tinfoil.sh    -> whisper-large-v3-turbo
@@ -42,6 +43,7 @@ type config struct {
 	listenAddr             string
 	domain                 string
 	qwenTTSURL             string
+	qwenTTSBaseURL         string
 	voxtralTTSURL          string
 	voxtralMiniRealtimeURL string
 	whisperURL             string
@@ -53,6 +55,7 @@ func main() {
 		listenAddr:             getenvDefault("LISTEN_ADDR", ":8080"),
 		domain:                 getenvDefault("DOMAIN", "localhost"),
 		qwenTTSURL:             getenvDefault("QWEN_TTS_URL", "http://127.0.0.1:8505"),
+		qwenTTSBaseURL:         getenvDefault("QWEN_TTS_BASE_URL", "http://127.0.0.1:8506"),
 		voxtralTTSURL:          getenvDefault("VOXTRAL_TTS_URL", "http://127.0.0.1:8605"),
 		voxtralMiniRealtimeURL: getenvDefault("VOXTRAL_MINI_REALTIME_URL", "http://127.0.0.1:8402"),
 		whisperURL:             getenvDefault("WHISPER_URL", "http://127.0.0.1:8001"),
@@ -72,6 +75,7 @@ func main() {
 
 	log.Printf("starting small-models router on %s (domain=%s)", cfg.listenAddr, cfg.domain)
 	log.Printf("backend qwen3-tts                -> %s", cfg.qwenTTSURL)
+	log.Printf("backend qwen3-tts-base           -> %s", cfg.qwenTTSBaseURL)
 	log.Printf("backend voxtral-tts              -> %s", cfg.voxtralTTSURL)
 	log.Printf("backend voxtral-mini-4b-realtime -> %s", cfg.voxtralMiniRealtimeURL)
 	log.Printf("backend whisper-large-v3-turbo   -> %s", cfg.whisperURL)
@@ -128,6 +132,18 @@ func newHandler(cfg config) (http.Handler, error) {
 			return
 		}
 
+		// Only expose the Qwen API we validate. Batch, uploaded voices, and
+		// speech WebSockets have different payloads and would bypass the
+		// per-request limits/checkpoint guard below.
+		if b.name == "qwen3-tts" || b.name == "qwen3-tts-base" {
+			switch r.URL.Path {
+			case "/v1/audio/speech", "/health", "/metrics":
+			default:
+				http.NotFound(w, r)
+				return
+			}
+		}
+
 		if _, isTTS := ttsMaxInputChars[b.name]; isTTS && !enforceTTSLimits(w, r, b.name) {
 			return
 		}
@@ -142,6 +158,7 @@ func buildBackends(cfg config) (map[string]*backend, error) {
 		raw  string
 	}{
 		{name: "qwen3-tts", raw: cfg.qwenTTSURL},
+		{name: "qwen3-tts-base", raw: cfg.qwenTTSBaseURL},
 		{name: "voxtral-tts", raw: cfg.voxtralTTSURL},
 		{name: "voxtral-mini-4b-realtime", raw: cfg.voxtralMiniRealtimeURL},
 		{name: "whisper-large-v3-turbo", raw: cfg.whisperURL},
