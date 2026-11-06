@@ -1,0 +1,52 @@
+--- a/usr/local/lib/python3.12/dist-packages/vllm_omni/entrypoints/openai/serving_speech.py
++++ b/usr/local/lib/python3.12/dist-packages/vllm_omni/entrypoints/openai/serving_speech.py
+@@ -2447,7 +2447,10 @@
+         gated by ``--allowed-local-media-path``).
+         """
+         cache_key = hashlib.sha1(ref_audio_str.encode("utf-8")).hexdigest()
+-        cached = self._ref_audio_resolve_cache.get(cache_key)
++        # Local privacy policy: Qwen reference audio is never shared across requests.
++        cached = None
++        if self._tts_model_type != "qwen3_tts":
++            cached = self._ref_audio_resolve_cache.get(cache_key)
+         if cached is not None:
+             self._ref_audio_resolve_cache.move_to_end(cache_key)
+             wav_list, sr, _, _ = cached
+@@ -2511,6 +2514,8 @@
+         return h.hexdigest()
+
+     def _get_resolved_ref_audio_artifact_key(self, ref_audio_str: str) -> str | None:
++        if self._tts_model_type == "qwen3_tts":
++            return None
+         source_key = hashlib.sha1(ref_audio_str.encode("utf-8")).hexdigest()
+         cached = self._ref_audio_resolve_cache.get(source_key)
+         if cached is None:
+@@ -2519,6 +2524,8 @@
+         return cached[3]
+
+     def _put_resolved_ref_audio(self, cache_key: str, wav_list: list[float], sr: int, artifact_key: str) -> None:
++        if self._tts_model_type == "qwen3_tts":
++            return
+         if self._ref_audio_resolve_cache_max_entries <= 0 or self._ref_audio_resolve_cache_max_bytes <= 0:
+             return
+         # Approximate list[float] storage. CPython float objects add per-element
+--- a/usr/local/lib/python3.12/dist-packages/vllm_omni/model_executor/models/qwen3_tts/prompt_embeds_builder.py
++++ b/usr/local/lib/python3.12/dist-packages/vllm_omni/model_executor/models/qwen3_tts/prompt_embeds_builder.py
+@@ -328,12 +328,15 @@
+         self._speaker_encoder = speaker_encoder
+         self._tts_pad_embed_buffer = tts_pad_embed
+         self._encode_ref_audio_batch_fn = encode_ref_audio_batch
+-        self._speaker_cache = speaker_cache
++        # Local privacy policy: caller-supplied voice names are not tenant IDs.
++        # Never reuse or retain speaker artifacts across Qwen TTS requests.
++        self._speaker_cache = None
+         self._embedding_dtype = torch.bfloat16
+
+         self._text_tokenizer: Any | None = None
+
+-        self._ref_audio_artifact_cache_max_entries = int(ref_audio_artifact_cache_max_entries)
++        # Ignore the upstream cache-size argument: reference caching is disabled.
++        self._ref_audio_artifact_cache_max_entries = 0
+         self._ref_audio_artifact_cache: OrderedDict[str, dict[str, torch.Tensor | bool]] = OrderedDict()
+
+         # Bounded LRU; caller-supplied orig_sr can otherwise grow this without limit.
